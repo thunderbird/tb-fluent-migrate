@@ -3,6 +3,7 @@ import os
 from os.path import join, relpath
 import shutil
 import tempfile
+from unittest.mock import patch
 
 from fluent.migratetb.repo_client import git
 from fluent.migratetb.tool import Migrator
@@ -139,3 +140,22 @@ class TestGitCommit(unittest.TestCase):
             self.migrator.client.root, "show", "--no-patch", "--pretty=format:%an:%s"
         )
         self.assertEqual(stdout, "Axel:Git commit message docstring, part 2.")
+
+    def test_no_gpg_sign_included(self):
+        with open(join(self.migrator.localization_dir, "d1", "f1"), "a") as f:
+            f.write("second line\n")
+        self.migrator.no_gpg_sign = True
+        with patch("fluent.migratetb.repo_client.git", wraps=git) as mock_git:
+            self.migrator.commit_changeset("Test message.", "Axel <axel@example.com>", 1)
+        commit_calls = [c for c in mock_git.call_args_list if "commit" in c.args]
+        self.assertEqual(len(commit_calls), 1)
+        self.assertIn("--no-gpg-sign", commit_calls[0].args)
+
+    def test_no_gpg_sign_absent_by_default(self):
+        with open(join(self.migrator.localization_dir, "d1", "f1"), "a") as f:
+            f.write("second line\n")
+        with patch("fluent.migratetb.repo_client.git", wraps=git) as mock_git:
+            self.migrator.commit_changeset("Test message.", "Axel <axel@example.com>", 1)
+        commit_calls = [c for c in mock_git.call_args_list if "commit" in c.args]
+        self.assertEqual(len(commit_calls), 1)
+        self.assertNotIn("--no-gpg-sign", commit_calls[0].args)

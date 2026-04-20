@@ -26,12 +26,18 @@ def dont_write_bytecode():
 
 class Migrator:
     def __init__(
-        self, locale: str, reference_dir: str, localization_dir: str, dry_run: bool
+        self,
+        locale: str,
+        reference_dir: str,
+        localization_dir: str,
+        dry_run: bool,
+        no_gpg_sign: bool = False,
     ):
         self.locale = locale
         self.reference_dir = reference_dir
         self.localization_dir = localization_dir
         self.dry_run = dry_run
+        self.no_gpg_sign = no_gpg_sign
         self._client = None
 
     @property
@@ -119,7 +125,7 @@ class Migrator:
         if self.dry_run:
             return
         try:
-            self.client.commit(message, author)
+            self.client.commit(message, author, no_gpg_sign=self.no_gpg_sign)
         except Exception as err:
             print(f"    WARNING: commit failed ({err})")
 
@@ -130,9 +136,10 @@ def main(
     localization_dir: str,
     migrations: Iterable[ModuleType],
     dry_run: bool,
+    no_gpg_sign: bool = False,
 ):
     """Run migrations and commit files with the result."""
-    migrator = Migrator(locale, reference_dir, localization_dir, dry_run)
+    migrator = Migrator(locale, reference_dir, localization_dir, dry_run, no_gpg_sign)
 
     for migration in migrations:
         migrator.run(migration)
@@ -163,7 +170,12 @@ def cli():
         action="store_true",
         help="do not write to disk nor commit any changes",
     )
-    parser.set_defaults(dry_run=False)
+    parser.add_argument(
+        "--no-gpg-sign",
+        action="store_true",
+        help="pass --no-gpg-sign to git commit",
+    )
+    parser.set_defaults(dry_run=False, no_gpg_sign=False)
 
     logger = logging.getLogger("migrate")
     logger.setLevel(logging.INFO)
@@ -181,6 +193,7 @@ def cli():
         localization_dir=args.localization_dir,
         migrations=migrations,
         dry_run=args.dry_run,
+        no_gpg_sign=args.no_gpg_sign,
     )
 
 

@@ -73,13 +73,16 @@ class RepoClient:
                     lines.append((user, time))
             return lines
 
-    def commit(self, message: str, author: str):
+    def commit(self, message: str, author: str, no_gpg_sign: bool = False):
         "Add and commit all work tree files"
         if self.hgclient:
             self.hgclient.commit(message, user=author.encode("utf-8"), addremove=True)
         else:
             git(self.root, "add", ".")
-            git(self.root, "commit", f"--author={author}", f"--message={message}")
+            args = ["commit", f"--author={author}", f"--message={message}"]
+            if no_gpg_sign:
+                args.append("--no-gpg-sign")
+            git(self.root, *args)
 
     def head(self) -> str:
         "Identifier for the most recent commit"
